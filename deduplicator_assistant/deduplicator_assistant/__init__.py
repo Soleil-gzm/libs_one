@@ -1,17 +1,4 @@
-from .core import (
-    process,
-    find_adjacent_duplicates_in_dialogue,
-    find_adjacent_duplicates,
-    analyze_file,
-    calculate_similarity,
-    normalize_content,
-)
+from .core import process, calculate_similarity, normalize_content,find_adjacent_duplicates,analyze_file
 
-__all__ = [
-    "process",
-    "find_adjacent_duplicates_in_dialogue",
-    "find_adjacent_duplicates",
-    "analyze_file",
-    "calculate_similarity",
-    "normalize_content",
-]
+
+__all__ = ["process", "calculate_similarity", "normalize_content", "find_adjacent_duplicates", "analyze_file"]
