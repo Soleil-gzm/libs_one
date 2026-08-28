@@ -1,0 +1,26 @@
+[
+    {
+        "messages": [
+            {
+                "role": "system",
+                "content": "系统提示"
+            },
+            {
+                "role": "user",
+                "content": "你好"
+            },
+            {
+                "role": "assistant",
+                "content": "您好，请问有什么可以帮助您？"
+            },
+            {
+                "role": "user",
+                "content": "查询账单"
+            },
+            {
+                "role": "assistant",
+                "content": "您好，请问有什么可以帮助您？"
+            }
+        ]
+    }
+]
