@@ -154,35 +154,48 @@ def find_adjacent_duplicates_in_dialogue(messages, threshold=1.0, ignore_numbers
     return duplicates
 
 
-def find_adjacent_duplicates(data, threshold=1.0, ignore_numbers=True):
+def find_adjacent_duplicates(data, threshold=1.0, ignore_numbers=True, return_stats=False):
     """
     分析整个对话列表，找出每个对话中存在的相邻 assistant 重复对。
-    返回一个列表，每个元素为 dict，包含：
+    如果 return_stats=False（默认），返回一个列表，每个元素为 dict，包含：
         - 'dialogue_index': 对话在 data 中的索引
         - 'duplicate_pairs': 重复对列表（与 find_adjacent_duplicates_in_dialogue 返回格式一致）
-        - 'dialogue': 原始对话的浅拷贝（或深拷贝，根据需要）
+        - 'dialogue': 原始对话的浅拷贝
+    如果 return_stats=True，返回 (results, stats)，其中 stats 为字典：
+        - 'total_dialogues': 总对话数
+        - 'duplicate_dialogues': 存在重复的对话数
+        - 'total_duplicate_pairs': 所有对话中的重复对总数
     """
     results = []
+    total_pairs = 0
     for idx, dialogue in enumerate(data):
         messages = dialogue.get("messages", [])
-        pairs = find_adjacent_duplicates_in_dialogue(
-            messages, threshold, ignore_numbers
-        )
+        pairs = find_adjacent_duplicates_in_dialogue(messages, threshold, ignore_numbers)
         if pairs:
-            results.append(
-                {
-                    "dialogue_index": idx,
-                    "duplicate_pairs": pairs,
-                    "dialogue": dialogue.copy(),  # 浅拷贝，保留原始数据
-                }
-            )
+            results.append({
+                "dialogue_index": idx,
+                "duplicate_pairs": pairs,
+                "dialogue": dialogue.copy(),
+            })
+            total_pairs += len(pairs)
+
+    if return_stats:
+        stats = {
+            "total_dialogues": len(data),
+            "duplicate_dialogues": len(results),
+            "total_duplicate_pairs": total_pairs,
+        }
+        return results, stats
     return results
 
 
-def analyze_file(input_path, output_path, threshold=1.0, ignore_numbers=True):
+def analyze_file(input_path, output_path, threshold=1.0, ignore_numbers=True, return_stats=False):
     """
     读取 JSON 文件，分析每个对话，将包含重复 assistant 的对话保存到新文件。
     输出文件中会额外添加 '_has_adjacent_assistant_duplicate' 和 '_duplicate_pairs' 字段。
+
+    如果 return_stats=False（默认），返回保存的数据列表（result_data）。
+    如果 return_stats=True，返回 (result_data, stats)，其中 stats 与 find_adjacent_duplicates 返回的 stats 一致。
     """
     input_path = Path(input_path)
     output_path = Path(output_path)
@@ -197,19 +210,26 @@ def analyze_file(input_path, output_path, threshold=1.0, ignore_numbers=True):
         raise ValueError("输入 JSON 根元素必须是列表")
 
     result_data = []
+    total_pairs = 0
     for idx, dialogue in enumerate(data):
         messages = dialogue.get("messages", [])
-        pairs = find_adjacent_duplicates_in_dialogue(
-            messages, threshold, ignore_numbers
-        )
+        pairs = find_adjacent_duplicates_in_dialogue(messages, threshold, ignore_numbers)
         if pairs:
             dialogue_copy = dialogue.copy()
             dialogue_copy["_has_adjacent_assistant_duplicate"] = True
             dialogue_copy["_duplicate_pairs"] = pairs
             result_data.append(dialogue_copy)
+            total_pairs += len(pairs)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(result_data, f, ensure_ascii=False, indent=2)
 
-    return result_data  # 返回保存的数据，便于后续使用
+    if return_stats:
+        stats = {
+            "total_dialogues": len(data),
+            "duplicate_dialogues": len(result_data),
+            "total_duplicate_pairs": total_pairs,
+        }
+        return result_data, stats
+    return result_data
