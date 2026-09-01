@@ -1,164 +1,151 @@
+import re
+from decimal import Decimal
 from typing import Union
 from warnings import warn
-from decimal import Decimal
-import re
 
-from proces import preprocess
+# ============ 常量定义 ============
+NUMBER_LOW_AN2CN = {
+    0: "零",
+    1: "一",
+    2: "二",
+    3: "三",
+    4: "四",
+    5: "五",
+    6: "六",
+    7: "七",
+    8: "八",
+    9: "九",
+}
+# 进制尺
+UNIT_LOW_ORDER_AN2CN = [
+    "",
+    "十",
+    "百",
+    "千",
+    "万",
+    "十",
+    "百",
+    "千",
+    "亿",
+    "十",
+    "百",
+    "千",
+    "万",
+    "十",
+    "百",
+    "千",
+]
+# ==================================
 
-from .conf import NUMBER_LOW_AN2CN, UNIT_LOW_ORDER_AN2CN
+def An2Cn(inputs: Union[str, int, float]) -> str:
+    """
+    阿拉伯数字转中文小写数字（口语化）
+    :param inputs: 数字，可以是字符串、整数或浮点数
+    :return: 中文读法字符串
+    """
+    if inputs is None or inputs == "":
+        raise ValueError("输入数据为空！")
 
+    # 转换为字符串（避免科学计数法）
+    if not isinstance(inputs, str):
+        inputs = format(Decimal(str(inputs)), "f")
 
-class An2Cn(object):
-    def __init__(self) -> None:
-        self.all_num = "0123456789"
-        self.number_low = NUMBER_LOW_AN2CN
-        # self.number_up = NUMBER_UP_AN2CN
-        self.mode_list = ["low", "up", "rmb", "direct"]
+    # 校验字符是否合法（只允许数字、小数点、负号）
+    if not all(c in "0123456789.-" for c in inputs):
+        raise ValueError(f"输入包含非法字符：{inputs}")
 
-    def an2cn(self, inputs: Union[str, int, float] = None, mode: str = "low") -> str:
-        """阿拉伯数字转中文数字
+    # 处理负号
+    sign = ""
+    if inputs[0] == "-":
+        sign = "负"
+        inputs = inputs[1:]
 
-        :param inputs: 阿拉伯数字
-        :param mode: low 小写数字，up 大写数字，rmb 人民币大写，direct 直接转化
-        :return: 中文数字
-        """
-        if inputs is not None and inputs != "":
-            if mode not in self.mode_list:
-                raise ValueError(f"mode 仅支持 {str(self.mode_list)} ！")
+    # 分割整数和小数
+    parts = inputs.split(".")
+    if len(parts) == 1:
+        integer_part = parts[0]
+        decimal_part = ""
+    elif len(parts) == 2:
+        integer_part, decimal_part = parts
+    else:
+        raise ValueError(f"输入格式错误（多个小数点）：{inputs}")
 
-            # 将数字转化为字符串，这里会有Python会自动做转化
-            # 1. -> 1.0 1.00 -> 1.0 -0 -> 0
-            if not isinstance(inputs, str):
-                inputs = self.__number_to_string(inputs)
+    # 转换整数部分
+    int_cn = _integer_convert(integer_part)
 
-            # 数据预处理：
-            # 1. 繁体转简体
-            # 2. 全角转半角
-            inputs = preprocess(inputs, pipelines=[
-                "traditional_to_simplified",
-                "full_angle_to_half_angle"
-            ])
+    # ---- 口语化后处理：把“二”+（千/百/万/亿）且前面不是“十”的替换为“两” ----
+    int_cn = re.sub(r'(?<![十])二(百|千|万|亿)', r'两\1', int_cn)
 
-            # 检查数据是否有效
-            self.__check_inputs_is_valid(inputs)
-
-            # 判断正负
-            if inputs[0] == "-":
-                sign = "负"
-                inputs = inputs[1:]
-            else:
-                sign = ""
-
-            if mode == "direct":
-                output = self.__direct_convert(inputs)
-            else:
-                # 切割整数部分和小数部分
-                split_result = inputs.split(".")
-                len_split_result = len(split_result)
-                if len_split_result == 1:
-                    # 不包含小数的输入
-                    integer_data = split_result[0]
-                    output = self.__integer_convert(integer_data, mode)
-                elif len_split_result == 2:
-                    # 包含小数的输入
-                    integer_data, decimal_data = split_result
-                    output = self.__integer_convert(integer_data, mode) + self.__decimal_convert(decimal_data, mode)
-                else:
-                    raise ValueError(f"输入格式错误：{inputs}！")
+    # ---- 处理小数部分（去掉末尾无意义的零） ----
+    if decimal_part:
+        # 去除小数部分末尾的零
+        decimal_part = decimal_part.rstrip('0')
+        if decimal_part:
+            dec_cn = _decimal_convert(decimal_part)
         else:
-            raise ValueError("输入数据为空！")
+            dec_cn = ""
+    else:
+        dec_cn = ""
 
-        return sign + output
+    # 拼接结果
+    result = int_cn + dec_cn
 
-    def __direct_convert(self, inputs: str) -> str:
-        _output = ""
-        for d in inputs:
-            if d == ".":
-                _output += "点"
+    return sign + result
+
+
+def _integer_convert(integer_data: str) -> str:
+    """整数部分转换（沿用 cn2an 的 low 模式算法，只做了简单的“两”替换已在外部处理）"""
+    if integer_data == "":
+        return "零"
+    integer_data = str(int(integer_data))  # 去除前导零
+    if integer_data == "0":
+        return "零"
+
+    length = len(integer_data)
+    if length > len(UNIT_LOW_ORDER_AN2CN):
+        raise ValueError(f"超出支持的最大位数（{len(UNIT_LOW_ORDER_AN2CN)} 位）")
+
+    output = ""
+    for i, ch in enumerate(integer_data):
+        digit = int(ch)
+        unit = UNIT_LOW_ORDER_AN2CN[length - i - 1]
+
+        if digit == 0:
+            # 如果是万、亿等大单位（索引 % 4 == 0），补“零”+单位
+            if (length - i - 1) % 4 == 0:
+                output += "零" + unit
             else:
-                _output += self.number_low[int(d)]
-        return _output
-
-    @staticmethod
-    def __number_to_string(number_data: Union[int, float]) -> str:
-        # 小数处理：python 会自动把 0.00005 转化成 5e-05，因此 str(0.00005) != "0.00005"
-        string_data = format(Decimal(str(number_data)), "f")
-        return string_data
-
-    def __check_inputs_is_valid(self, check_data: str) -> None:
-        # 检查输入数据是否在规定的字典中
-        all_check_keys = self.all_num + ".-"
-        for data in check_data:
-            if data not in all_check_keys:
-                raise ValueError(f"输入的数据不在转化范围内：{data}！")
-
-    def __integer_convert(self, integer_data: str, mode: str) -> str:
-        if mode == "low":
-            numeral_list = NUMBER_LOW_AN2CN
-            unit_list = UNIT_LOW_ORDER_AN2CN
-        # elif mode == "up":
-        #     numeral_list = NUMBER_UP_AN2CN
-        #     unit_list = UNIT_UP_ORDER_AN2CN
+                # 否则只补“零”（如果前面已有内容且末尾不是零）
+                if output and not output.endswith("零"):
+                    output += "零"
         else:
-            raise ValueError(f"error mode: {mode}")
+            # 这里我们不再单独判断“两”，统一交给后处理
+            output += NUMBER_LOW_AN2CN[digit] + unit
 
-        # 去除前面的 0，比如 007 => 7
-        integer_data = str(int(integer_data))
+    # 整理多余的零
+    output = output.replace("零零", "零")
+    output = output.replace("零万", "万").replace("零亿", "亿")
+    output = output.replace("亿万", "亿")
+    output = re.sub(r"([万亿])零([一二三四五六七八九][千])", r"\1\2", output)
+    output = output.strip("零")
 
-        len_integer_data = len(integer_data)
-        if len_integer_data > len(unit_list):
-            raise ValueError(f"超出数据范围，最长支持 {len(unit_list)} 位")
+    # 处理“一十”开头（如 10 → 十）
+    if output.startswith("一十"):
+        output = output[1:]
 
-        output_an = ""
-        for i, d in enumerate(integer_data):
-            if int(d):
-                digit = int(d)
-                unit = unit_list[len_integer_data - i - 1]
-                # 判断是否为 "2" 且处于高位（千、百、万、亿）且该组无更高位非零数字
-                if digit == 2 and unit in ("千", "百", "万", "亿") and not output_an:
-                    output_an += "两" + unit
-                else:
-                    output_an += numeral_list[digit] + unit
-            else:
-                if not (len_integer_data - i - 1) % 4:
-                    output_an += numeral_list[int(d)] + unit_list[len_integer_data - i - 1]
+    return output if output else "零"
 
-                if i > 0 and not output_an[-1] == "零":
-                    output_an += numeral_list[int(d)]
 
-        output_an = output_an.replace("零零", "零").replace("零万", "万").replace("零亿", "亿").replace("亿万", "亿") \
-            .strip("零")
-        output_an = re.sub(r"([万亿])零([一二三四五六七八九壹贰叁肆伍陆柒捌玖][千仟])", r"\1\2", output_an)
+def _decimal_convert(decimal_data: str) -> str:
+    """小数部分转换（点 + 逐位数字，此时 decimal_data 已去除末尾零）"""
+    if not decimal_data:
+        return ""
+    if len(decimal_data) > 16:
+        decimal_data = decimal_data[:16]
+        warn(f"小数部分过长，已截取前16位：{decimal_data}")
 
-        # 解决「一十几」问题
-        if output_an[:2] in ["一十"]:
-            output_an = output_an[1:]
+    output = "点"
+    for ch in decimal_data:
+        output += NUMBER_LOW_AN2CN[int(ch)]
+    return output
 
-        # 0 - 1 之间的小数
-        if not output_an:
-            output_an = "零"
-
-        return output_an
-
-    def __decimal_convert(self, decimal_data: str, o_mode: str) -> str:
-        len_decimal_data = len(decimal_data)
-
-        if len_decimal_data > 16:
-            warn(f"注意：小数部分长度为 {len_decimal_data} ，将自动截取前 16 位有效精度！")
-            decimal_data = decimal_data[:16]
-
-        if len_decimal_data:
-            output_an = "点"
-        else:
-            output_an = ""
-
-        if o_mode == "low":
-            numeral_list = NUMBER_LOW_AN2CN
-        # elif o_mode == "up":
-        #     numeral_list = NUMBER_UP_AN2CN
-        else:
-            raise ValueError(f"error mode: {o_mode}")
-
-        for data in decimal_data:
-            output_an += numeral_list[int(data)]
-        return output_an
