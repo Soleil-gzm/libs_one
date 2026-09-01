@@ -7,5 +7,5 @@ setup(
     description="将阿拉伯数字转化为口语化中文数字",
     packages=find_packages(),  # 自动发现 spoken_an2cn 包
     python_requires=">=3.6",
-    install_requires=[],  # 无外部依赖
+    install_requires=[],  # 仅依赖标准库（re/decimal/typing/warnings）
 )
