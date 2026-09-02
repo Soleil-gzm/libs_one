@@ -37,7 +37,7 @@ pip install -e .
 ## 🚀 快速开始
 
 ```python
-from random_namesCN import random_chinese_name
+from random_namesCN import random_chinese_name, random_chinese_name_parts
 
 # 不传参：6 种组合中随机选一种
 print(random_chinese_name())  # 如：东方丽彤
@@ -49,6 +49,12 @@ print(random_chinese_name("single", 3))     # 单姓 + 三字名 = 4 字，如�
 print(random_chinese_name("compound", 1))   # 复姓 + 单字名 = 3 字，如：公良丽
 print(random_chinese_name("compound", 2))   # 复姓 + 双字名 = 4 字，如：公良辉宸
 print(random_chinese_name("compound", 3))   # 复姓 + 三字名 = 5 字，如：公良丁炎炎
+
+# 姓、名分开返回（便于做称呼拼接、姓替换等）
+surname, given = random_chinese_name_parts("compound", 2)
+print(surname, given)              # 如：公良 辉宸
+print(surname + "女士")            # 如：公良女士
+print(surname[0] + "女士")         # 如：公女士（复姓缩写）
 ```
 
 ---
@@ -64,16 +70,20 @@ print(random_chinese_name("compound", 3))   # 复姓 + 三字名 = 5 字，如�
 
 ## 📚 API
 
-### `random_chinese_name(surname_type=None, given_name_len=None)`
+### `random_chinese_name_parts(surname_type=None, given_name_len=None)`
 
-主入口，生成随机中文名字。
+主入口，生成随机中文名字，返回 **(姓, 名) 元组**，便于后续做姓替换、称呼拼接（如 `欧阳女士` / `欧女士`）等处理。
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | `surname_type` | `str` / `None` | `'single'`(单姓) / `'compound'`(复姓)，`None` 表示随机 |
 | `given_name_len` | `int` / `None` | `1` / `2` / `3`，`None` 表示随机 |
 
-**返回值：** 姓名字符串。非法参数会抛 `ValueError`。
+**返回值：** `(surname, given)` 元组。非法参数会抛 `ValueError`。
+
+### `random_chinese_name(surname_type=None, given_name_len=None)`
+
+`random_chinese_name_parts` 的薄封装，把 `(姓, 名)` 拼成完整姓名字符串。
 
 ### 快捷别名
 

@@ -1,5 +1,6 @@
 from .random_name import (
     random_chinese_name,
+    random_chinese_name_parts,
     random_two_name,
     random_three_name,
     random_three_names,
@@ -10,6 +11,7 @@ from .random_name import (
 
 __all__ = [
     "random_chinese_name",
+    "random_chinese_name_parts",
     "random_two_name",
     "random_three_name",
     "random_three_names",

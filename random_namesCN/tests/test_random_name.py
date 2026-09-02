@@ -11,6 +11,7 @@ import unittest
 
 from random_namesCN import (
     random_chinese_name,
+    random_chinese_name_parts,
     random_two_name,
     random_three_name,
     random_three_names,
@@ -154,6 +155,76 @@ class TestParameterizedAPI(unittest.TestCase):
             self.assertIn(len(name2), {2, 3, 4})
             name3 = random_chinese_name(None, 1)
             self.assertIn(len(name3), {2, 3})
+
+
+class TestNameParts(unittest.TestCase):
+    """random_chinese_name_parts 返回 (姓, 名) 元组的行为。"""
+
+    def test_returns_two_tuple(self):
+        result = random_chinese_name_parts("single", 1)
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+
+    def test_surname_length_by_type(self):
+        # 单姓=1 字，复姓=2 字
+        for _ in range(N):
+            self.assertEqual(len(random_chinese_name_parts("single", 1)[0]), 1)
+            self.assertEqual(len(random_chinese_name_parts("compound", 1)[0]), 2)
+
+    def test_given_length_by_param(self):
+        for gl, expected in [(1, 1), (2, 2), (3, 3)]:
+            with self.subTest(given_len=gl):
+                for _ in range(50):
+                    _, given = random_chinese_name_parts("single", gl)
+                    self.assertEqual(len(given), expected)
+
+    def test_total_length_matrix(self):
+        matrix = [
+            ("single", 1, 2),
+            ("single", 2, 3),
+            ("single", 3, 4),
+            ("compound", 1, 3),
+            ("compound", 2, 4),
+            ("compound", 3, 5),
+        ]
+        for st, gl, expected in matrix:
+            with self.subTest(st=st, gl=gl):
+                for _ in range(50):
+                    surname, given = random_chinese_name_parts(st, gl)
+                    self.assertEqual(len(surname) + len(given), expected)
+
+    def test_surname_from_correct_pool(self):
+        for _ in range(N):
+            s, _ = random_chinese_name_parts("single", 1)
+            self.assertIn(s, _last_names)
+            s, _ = random_chinese_name_parts("compound", 1)
+            self.assertIn(s, _compound_last_names)
+
+    def test_given_from_correct_pool(self):
+        for gl, pool in [
+            (1, _first_names_single),
+            (2, _first_names_double),
+            (3, _first_names_triple),
+        ]:
+            with self.subTest(gl=gl):
+                for _ in range(50):
+                    _, given = random_chinese_name_parts("single", gl)
+                    self.assertIn(given, pool)
+
+    def test_invalid_args_raise(self):
+        with self.assertRaises(ValueError):
+            random_chinese_name_parts("x", 1)
+        with self.assertRaises(ValueError):
+            random_chinese_name_parts("single", 0)
+
+    def test_consistent_with_random_chinese_name(self):
+        # 在同一 seed 下，parts 拼接结果应与 random_chinese_name 一致
+        seed = 123456
+        random.seed(seed)
+        parts_combined = ["".join(random_chinese_name_parts()) for _ in range(20)]
+        random.seed(seed)
+        combined = [random_chinese_name() for _ in range(20)]
+        self.assertEqual(parts_combined, combined)
 
 
 class TestSurnameFromPool(unittest.TestCase):

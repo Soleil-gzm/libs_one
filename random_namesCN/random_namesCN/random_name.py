@@ -29,20 +29,22 @@ _SURNAME_POOLS = {"single": _last_names, "compound": _compound_last_names}
 _GIVEN_POOLS = {1: _first_names_single, 2: _first_names_double, 3: _first_names_triple}
 
 
-def random_chinese_name(surname_type=None, given_name_len=None):
-    """生成随机中文名字
+def random_chinese_name_parts(surname_type=None, given_name_len=None):
+    """生成随机中文名字，返回 (姓, 名) 元组
 
     组合矩阵（6 种组合）：
-      单姓 + 单字名 = 2 字   例：赵 丽
-      单姓 + 双字名 = 3 字   例：赵 辉宸
-      单姓 + 三字名 = 4 字   例：赵 丁炎炎
-      复姓 + 单字名 = 3 字   例：公良 丽
-      复姓 + 双字名 = 4 字   例：公良 辉宸
-      复姓 + 三字名 = 5 字   例：公良 丁炎炎
+      单姓 + 单字名 = 2 字   例：('赵', '丽')
+      单姓 + 双字名 = 3 字   例：('赵', '辉宸')
+      单姓 + 三字名 = 4 字   例：('赵', '丁炎炎')
+      复姓 + 单字名 = 3 字   例：('公良', '丽')
+      复姓 + 双字名 = 4 字   例：('公良', '辉宸')
+      复姓 + 三字名 = 5 字   例：('公良', '丁炎炎')
+
+    姓和名分开返回，便于后续做姓替换、称呼拼接（如 '欧阳女士' / '欧女士'）等处理。
 
     :param surname_type: 'single'(单姓) / 'compound'(复姓)，None 表示随机
     :param given_name_len: 1 / 2 / 3，None 表示随机
-    :return: str
+    :return: (surname, given) 元组
     """
     if surname_type is None:
         surname_type = random.choice(["single", "compound"])
@@ -56,6 +58,18 @@ def random_chinese_name(surname_type=None, given_name_len=None):
 
     surname = random.choice(_SURNAME_POOLS[surname_type])
     given = random.choice(_GIVEN_POOLS[given_name_len])
+    return surname, given
+
+
+def random_chinese_name(surname_type=None, given_name_len=None):
+    """生成随机中文名字（拼接后的完整姓名字符串）
+
+    参数与返回值说明见 :func:`random_chinese_name_parts`，本函数仅把后者返回的
+    (姓, 名) 拼成一个字符串。
+
+    :return: str
+    """
+    surname, given = random_chinese_name_parts(surname_type, given_name_len)
     return surname + given
 
 
